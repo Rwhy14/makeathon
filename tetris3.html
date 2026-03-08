@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TETRIS — Makeathon</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --black: #000000;
+            --white: #ffffff;
+            --gray: #888888;
+        }
+
+        body {
+            background: var(--black);
+            color: var(--white);
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* CRT scanline overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg,
+                    transparent, transparent 2px,
+                    rgba(255, 255, 255, 0.015) 2px, rgba(255, 255, 255, 0.015) 4px);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        #instruction-page {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 40px 20px;
+        }
+
+        .inst-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            letter-spacing: 10px;
+            color: #c0bbbb;
+            margin-bottom: 4px;
+        }
+
+        .inst-game-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 120px;
+            letter-spacing: 20px;
+            color: #fff;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        /* subtitle text changed to reflect sensor check */
+        .inst-subtitle {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 15px;
+            letter-spacing: 4px;
+            color: #d9d1d1;
+            margin-bottom: 44px;
+            text-transform: uppercase;
+        }
+
+        /* tutorial step*/
+        #tutorial-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        /* progress dots */
+        .tut-dots {
+            display: flex;
+            gap: 15px;
+        }
+
+        .tut-dot {
+            width: 12px;
+            height: 12px;
+            border: 2px solid #333;
+            border-radius: 200%;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .tut-dot.active {
+            border-color: #fff;
+            background: transparent;
+        }
+
+        .tut-dot.done {
+            border-color: #fff;
+            background: #fff;
+        }
+
+        /* single active step card */
+        .tut-card {
+            border: 1px solid #fff;
+            padding: 36px 32px 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            position: relative;
+        }
+
+        .tut-step-label {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: #efeaea;
+            text-transform: uppercase;
+        }
+
+        .tut-sensor-tag {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: #e7e3e3;
+            text-transform: uppercase;
+        }
+
+        .tut-icon {
+            font-size: 56px;
+            line-height: 1;
+        }
+
+        .tut-action {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 40px;
+            letter-spacing: 6px;
+            color: #fff;
+            text-align: center;
+        }
+
+        .tut-desc {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 15px;
+            letter-spacing: 2px;
+            color: #bbb9b9;
+            text-align: center;
+            line-height: 1.8;
+            text-transform: uppercase;
+        }
+
+        .tut-status {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 25px;
+            letter-spacing: 5px;
+            color: #d9d5d5;
+            text-transform: uppercase;
+            margin-top: 4px;
+            transition: color 0.2s;
+        }
+
+        .tut-status.waiting {
+            color: #555;
+            animation: blink 1.2s ease-in-out infinite;
+        }
+
+        .tut-status.success {
+            color: #fff;
+            animation: none;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        /* card exit/enter transitions */
+        @keyframes fadeSlideOut {
+            0% {
+                opacity: 1;
+                transform: translateY(0)
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-18px)
+            }
+        }
+
+        @keyframes fadeSlideIn {
+            0% {
+                opacity: 0;
+                transform: translateY(18px)
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .card-exit {
+            animation: fadeSlideOut 0.45s ease forwards;
+        }
+
+        .card-enter {
+            animation: fadeSlideIn 0.4s ease forwards;
+        }
+
+        /* all-done screen */
+        #tut-all-done {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #tut-all-done .done-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 40px;
+            letter-spacing: 10px;
+            color: #fff;
+        }
+
+        #tut-all-done .done-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #555;
+            text-transform: uppercase;
+        }
+
+        #tut-all-done .done-hint {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 16px;
+            letter-spacing: 5px;
+            color: #fff;
+            border: 1px solid #fff;
+            padding: 14px 40px;
+            margin-top: 12px;
+            animation: blink 1.4s ease-in-out infinite;
+        }
+
+        @keyframes slide-r {
+
+            0%,
+            100% {
+                transform: translateX(0)
+            }
+
+            50% {
+                transform: translateX(9px)
+            }
+        }
+
+        @keyframes slide-l {
+
+            0%,
+            100% {
+                transform: translateX(0)
+            }
+
+            50% {
+                transform: translateX(-9px)
+            }
+        }
+
+        @keyframes handpulse {
+
+            0%,
+            100% {
+                transform: scale(1)
+            }
+
+            50% {
+                transform: scale(1.14)
+            }
+        }
+
+        @keyframes dropani {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(10px)
+            }
+        }
+
+        .anim-r {
+            animation: slide-r 1.4s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .anim-l {
+            animation: slide-l 1.4s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .anim-both {
+            animation: handpulse 1.8s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .anim-drop {
+            animation: dropani 1.2s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        .inst-divider {
+            width: 50px;
+            height: 1px;
+            background: #1e1e1e;
+            margin-bottom: 30px;
+        }
+
+        .inst-note {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: #2e2e2e;
+            text-transform: uppercase;
+        }
+
+        /* ── GAME LAYOUT  */
+        #game-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 32px;
+            padding: 24px;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            width: 140px;
+        }
+
+        .panel-box {
+            border: 1px solid #222;
+            padding: 14px;
+        }
+
+        .panel-label {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 15px;
+            letter-spacing: 4px;
+            color: var(--gray);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .panel-value {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 32px;
+            letter-spacing: 2px;
+            color: var(--white);
+            line-height: 1;
+        }
+
+        .board-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 52px;
+            letter-spacing: 16px;
+            color: var(--white);
+            text-align: center;
+            margin-bottom: 16px;
+            line-height: 1;
+        }
+
+        #game {
+            display: block;
+            border: 2px solid var(--white);
+            image-rendering: pixelated;
+        }
+
+        #next-canvas {
+            display: block;
+            margin-top: 4px;
+        }
+
+        .controls-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .ctrl-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+            letter-spacing: 1px;
+            color: var(--gray);
+        }
+
+        .key {
+            background: #111;
+            border: 1px solid #333;
+            color: var(--white);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            padding: 2px 6px;
+        }
+
+        #restart-btn {
+            display: none;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 16px;
+            letter-spacing: 5px;
+            background: var(--white);
+            color: var(--black);
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.1s, color 0.1s;
+        }
+
+        #restart-btn:hover {
+            background: #000;
+            color: #fff;
+            outline: 2px solid #fff;
+        }
+
+        /* ── UPLOAD BUTTONS  */
+        #upload-btn-label {
+            position: fixed;
+            bottom: 18px;
+            right: 22px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 13px;
+            letter-spacing: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa;
+            border: 1px solid #333;
+            padding: 8px 16px;
+            cursor: pointer;
+            z-index: 200;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        #upload-btn-label:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+            border-color: #fff;
+        }
+
+        #bg-upload {
+            display: none;
+        }
+
+        .audio-controls {
+            position: fixed;
+            bottom: 18px;
+            left: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 200;
+        }
+
+        .audio-label {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 13px;
+            letter-spacing: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa;
+            border: 1px solid #333;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: block;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .audio-label:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #fff;
+            border-color: #fff;
+        }
+
+        .audio-label.loaded {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        input[type="file"].audio-input {
+            display: none;
+        }
+
+        .vol-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .vol-row span {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        input[type=range].vol-slider {
+            -webkit-appearance: none;
+            width: 80px;
+            height: 2px;
+            background: #333;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type=range].vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes flash {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0
+            }
+        }
+
+        .flash {
+            animation: flash 0.15s ease 2;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── INSTRUCTION PAGE  -->
+
+    <div id="instruction-page">
+        <div class="inst-title">SENSOR-CONTROLLED</div>
+        <div class="inst-game-title">TOUCHY TETRIS</div>
+        <!-- MODIFIED: subtitle updated -->
+        <div class="inst-subtitle">— sensor check — perform each gesture to continue —</div>
+
+        <!-- ADDED: sequential tutorial -->
+        <div id="tutorial-wrap">
+
+            <!-- ADDED: 4 progress dots -->
+            <div class="tut-dots">
+                <div class="tut-dot active" id="dot-0"></div>
+                <div class="tut-dot" id="dot-1"></div>
+                <div class="tut-dot" id="dot-2"></div>
+                <div class="tut-dot" id="dot-3"></div>
+            </div>
+
+            <!-- ADDED: single card, content swapped by JS per step -->
+            <div class="tut-card" id="tut-card">
+                <span class="tut-step-label" id="tut-step-label">STEP 1 OF 4</span>
+                <span class="tut-sensor-tag" id="tut-sensor-tag">SENSOR R</span>
+                <div class="tut-icon" id="tut-icon"><span class="anim-r">🤚</span></div>
+                <div class="tut-action" id="tut-action">TOUCH RIGHT HAND</div>
+                <div class="tut-desc" id="tut-desc">Touch the right hand sensor<br>to confirm it works</div>
+                <div class="tut-status waiting" id="tut-status">WAITING FOR GESTURE…</div>
+            </div>
+
+            <!-- ADDED: shown after all 4 steps pass -->
+            <div id="tut-all-done">
+                <div class="done-title">ALL SENSORS OK</div>
+                <div class="done-sub">all gestures verified — you're ready</div>
+                <div class="done-hint">TOUCH BOTH HANDS TO START</div>
+            </div>
+
+        </div>
+        <!-- REMOVED: .sensor-grid, .inst-divider, #inst-start-btn, .inst-note -->
+    </div>
+
+    <input type="file" id="bg-upload" accept="image/*" />
+    <label for="bg-upload" id="upload-btn-label">📷 SET BOARD IMAGE</label>
+
+    <div class="audio-controls">
+        <input type="file" id="music-upload" class="audio-input" accept="audio/*" />
+        <label for="music-upload" id="music-label" class="audio-label">🎵 GAME MUSIC</label>
+        <input type="file" id="gameover-upload" class="audio-input" accept="audio/*" />
+        <label for="gameover-upload" id="gameover-label" class="audio-label">💀 GAME OVER SOUND</label>
+        <div class="vol-row">
+            <span>VOL</span>
+            <input type="range" id="vol-slider" class="vol-slider" min="0" max="1" step="0.05" value="0.6" />
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div class="side-panel">
+            <div class="panel-box">
+                <div class="panel-label">Score</div>
+                <div class="panel-value" id="score-display">0</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-label">Level</div>
+                <div class="panel-value" id="level-display">1</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-label">Lines</div>
+                <div class="panel-value" id="lines-display">0</div>
+            </div>
+            <div class="panel-box">
+                <div class="panel-label">High Score</div>
+                <div class="panel-value" id="highscore-display">0</div>
+            </div>
+        </div>
+        <div class="board-wrap">
+            <div class="game-title">TOUCHY TETRIS</div>
+            <canvas id="game"></canvas>
+        </div>
+        <div class="side-panel">
+            <div class="panel-box">
+                <div class="panel-label">Next</div>
+                <canvas id="next-canvas" width="120" height="80"></canvas>
+            </div>
+            <div class="panel-box">
+                <div class="panel-label">Watch Sensor Controls</div>
+                <div class="controls-list">
+                    <div class="ctrl-row"><span>Left</span> <span class="key">TOUCH LEFT</span></div>
+                    <div class="ctrl-row"><span>Right</span> <span class="key">TOUCH RIGHT</span></div>
+                    <div class="ctrl-row"><span>Rotate</span> <span class="key">TOUCH BOTH</span></div>
+                    <div class="ctrl-row"><span>Drop</span> <span class="key">HANDS DOWN</span></div>
+                    <div class="ctrl-row"><span>RESTART</span> <span class="key">TOUCH BOTH</span></div>
+                    <div class="ctrl-row"><span>QUIT</span> <span class="key">HANDS DOWN</span></div>
+                </div>
+                <div class="panel-label">Keyboard Controls</div>
+                <div class="controls-list">
+                    <div class="ctrl-row"><span>Left</span> <span class="key">A</span></div>
+                    <div class="ctrl-row"><span>Right</span> <span class="key">D</span></div>
+                    <div class="ctrl-row"><span>Rotate</span> <span class="key">A+D</span></div>
+                    <div class="ctrl-row"><span>Drop</span> <span class="key">S</span></div>
+                    <div class="ctrl-row"><span>RESTART</span> <span class="key">A+D</span></div>
+                    <div class="ctrl-row"><span>QUIT</span> <span class="key">S</span></div>
+                </div>
+            </div>
+            <button id="restart-btn">RESTART (TOUCH BOTH)</button>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        //  CONFIG 
+        // ═══════════════════════════════════════════════════════════════
+        const COLS = 10;
+        const ROWS = 20;
+        const CELL = 32;
+        const BASE_DROP_INTERVAL = 1500;
+        const MOVE_REPEAT_DELAY = 180;
+        const LINES_PER_LEVEL = 10;
+        const BASE_SCORE = { 1: 100, 2: 300, 3: 500, 4: 800 };
+
+        // ═══════════════════════════════════════════════════════════════
+        //  TETROMINOES
+        // ═══════════════════════════════════════════════════════════════
+        const PIECES = {
+            I: [
+                [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]],
+                [[0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 1, 0]],
+                [[0, 0, 0, 0], [0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0]],
+                [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]],
+            ],
+            O: [[[1, 1], [1, 1]], [[1, 1], [1, 1]], [[1, 1], [1, 1]], [[1, 1], [1, 1]]],
+            T: [
+                [[0, 1, 0], [1, 1, 1], [0, 0, 0]], [[0, 1, 0], [0, 1, 1], [0, 1, 0]],
+                [[0, 0, 0], [1, 1, 1], [0, 1, 0]], [[0, 1, 0], [1, 1, 0], [0, 1, 0]],
+            ],
+            S: [
+                [[0, 1, 1], [1, 1, 0], [0, 0, 0]], [[0, 1, 0], [0, 1, 1], [0, 0, 1]],
+                [[0, 0, 0], [0, 1, 1], [1, 1, 0]], [[1, 0, 0], [1, 1, 0], [0, 1, 0]],
+            ],
+            Z: [
+                [[1, 1, 0], [0, 1, 1], [0, 0, 0]], [[0, 0, 1], [0, 1, 1], [0, 1, 0]],
+                [[0, 0, 0], [1, 1, 0], [0, 1, 1]], [[0, 1, 0], [1, 1, 0], [1, 0, 0]],
+            ],
+            J: [
+                [[1, 0, 0], [1, 1, 1], [0, 0, 0]], [[0, 1, 1], [0, 1, 0], [0, 1, 0]],
+                [[0, 0, 0], [1, 1, 1], [0, 0, 1]], [[0, 1, 0], [0, 1, 0], [1, 1, 0]],
+            ],
+            L: [
+                [[0, 0, 1], [1, 1, 1], [0, 0, 0]], [[0, 1, 0], [0, 1, 0], [0, 1, 1]],
+                [[0, 0, 0], [1, 1, 1], [1, 0, 0]], [[1, 1, 0], [0, 1, 0], [0, 1, 0]],
+            ],
+        };
+        const PIECE_NAMES = Object.keys(PIECES);
+
+        // ═══════════════════════════════════════════════════════════════
+        //  CANVAS SETUP
+        // ═══════════════════════════════════════════════════════════════
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        canvas.width = COLS * CELL;
+        canvas.height = ROWS * CELL;
+        const nextCanvas = document.getElementById('next-canvas');
+        const nextCtx = nextCanvas.getContext('2d');
+
+        // ═══════════════════════════════════════════════════════════════
+        //  GAME STATE 
+        // ═══════════════════════════════════════════════════════════════
+        let board, currentPiece, nextPieceName, gameOver;
+        let score, level, totalLines, highScore = 0, lastDropTime, animFrameId;
+
+        function initGame() {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            currentPiece = null;
+            nextPieceName = PIECE_NAMES[Math.floor(Math.random() * PIECE_NAMES.length)];
+            gameOver = false;
+            score = 0; level = 1; totalLines = 0; lastDropTime = 0;
+            keysDown.a = false; keysDown.d = false; rotatedThisCombo = false;
+            updateUI();
+            document.getElementById('restart-btn').style.display = 'none';
+        }
+
+        function updateUI() {
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('level-display').textContent = level;
+            document.getElementById('lines-display').textContent = totalLines;
+            document.getElementById('highscore-display').textContent = highScore;
+        }
+
+        function getDropInterval() {
+            return Math.max(100, BASE_DROP_INTERVAL - (level - 1) * 100);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  PIECE HELPERS
+        // ═══════════════════════════════════════════════════════════════
+        function getShape(piece) { return PIECES[piece.name][piece.rotation]; }
+
+        function spawnPiece() {
+            const name = nextPieceName;
+            nextPieceName = PIECE_NAMES[Math.floor(Math.random() * PIECE_NAMES.length)];
+            const shape = PIECES[name][0];
+            const piece = { name, rotation: 0, row: 0, col: Math.floor((COLS - shape[0].length) / 2) };
+            if (!isValid(piece)) {
+                gameOver = true;
+                document.getElementById('restart-btn').style.display = 'block';
+                if (score > highScore) highScore = score;
+                updateUI();
+                playGameOver();
+                return null;
+            }
+            return piece;
+        }
+
+        function isValid(piece) {
+            const shape = getShape(piece);
+            for (let r = 0; r < shape.length; r++)
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (!shape[r][c]) continue;
+                    const br = piece.row + r, bc = piece.col + c;
+                    if (bc < 0 || bc >= COLS || br >= ROWS) return false;
+                    if (br < 0) continue;
+                    if (board[br][bc]) return false;
+                }
+            return true;
+        }
+
+        function lockPiece(piece) {
+            const shape = getShape(piece);
+            for (let r = 0; r < shape.length; r++)
+                for (let c = 0; c < shape[r].length; c++)
+                    if (shape[r][c] && piece.row + r >= 0 && piece.row + r < ROWS)
+                        board[piece.row + r][piece.col + c] = 1;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  MOVEMENT
+        // ═══════════════════════════════════════════════════════════════
+        function moveLeft() {
+            if (!currentPiece || gameOver) return;
+            const t = { ...currentPiece, col: currentPiece.col - 1 };
+            if (isValid(t)) currentPiece.col = t.col;
+        }
+        function moveRight() {
+            if (!currentPiece || gameOver) return;
+            const t = { ...currentPiece, col: currentPiece.col + 1 };
+            if (isValid(t)) currentPiece.col = t.col;
+        }
+        function rotateCW() {
+            if (!currentPiece || gameOver) return;
+            const total = PIECES[currentPiece.name].length;
+            const t = { ...currentPiece, rotation: (currentPiece.rotation + 1) % total };
+            for (const offset of [0, -1, 1, -2, 2]) {
+                t.col = currentPiece.col + offset;
+                if (isValid(t)) { currentPiece.rotation = t.rotation; currentPiece.col = t.col; return; }
+            }
+        }
+        function dropOne() {
+            if (!currentPiece || gameOver) return;
+            const t = { ...currentPiece, row: currentPiece.row + 1 };
+            if (isValid(t)) currentPiece.row = t.row; else lockAndSpawn();
+        }
+        function hardDrop() {
+            if (!currentPiece || gameOver) return;
+            while (isValid({ ...currentPiece, row: currentPiece.row + 1 })) currentPiece.row++;
+            lockAndSpawn();
+        }
+        function lockAndSpawn() {
+            lockPiece(currentPiece);
+            const cleared = clearLines();
+            if (cleared > 0) {
+                score += (BASE_SCORE[cleared] || 0) * level;
+                totalLines += cleared;
+                level = Math.floor(totalLines / LINES_PER_LEVEL) + 1;
+                updateUI();
+            }
+            currentPiece = spawnPiece();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  LINE CLEARING
+        // ═══════════════════════════════════════════════════════════════
+        function clearLines() {
+            let cleared = 0;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r].every(c => c === 1)) {
+                    board.splice(r, 1);
+                    board.unshift(Array(COLS).fill(0));
+                    cleared++; r++;
+                }
+            }
+            return cleared;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  INPUT HANDLING
+        // ═══════════════════════════════════════════════════════════════
+        const keysDown = { a: false, d: false };
+        let lastMoveTime = { a: 0, d: 0 };
+        let rotatedThisCombo = false;
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'a') keysDown.a = true;
+            if (key === 'd') keysDown.d = true;
+            if (key === 's') hardDrop();
+        });
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'a') { keysDown.a = false; rotatedThisCombo = false; }
+            if (key === 'd') { keysDown.d = false; rotatedThisCombo = false; }
+        });
+
+        function processInput(now) {
+            if (gameOver) return;
+            if (keysDown.a && keysDown.d) {
+                if (!rotatedThisCombo) { rotateCW(); rotatedThisCombo = true; }
+                return;
+            }
+            if (keysDown.a && !keysDown.d) {
+                if (now - lastMoveTime.a > MOVE_REPEAT_DELAY) { moveLeft(); lastMoveTime.a = now; }
+            }
+            if (keysDown.d && !keysDown.a) {
+                if (now - lastMoveTime.d > MOVE_REPEAT_DELAY) { moveRight(); lastMoveTime.d = now; }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  BOARD IMAGE
+        // ═══════════════════════════════════════════════════════════════
+        let boardImage = null;
+        function setBoardImage(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => { boardImage = img; };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        document.getElementById('bg-upload').addEventListener('change', (e) => {
+            if (e.target.files[0]) setBoardImage(e.target.files[0]);
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        //  AUDIO SYSTEM
+        // ═══════════════════════════════════════════════════════════════
+        const bgMusic = new Audio(); bgMusic.loop = true; bgMusic.volume = 0.6;
+        const gameOverSfx = new Audio(); gameOverSfx.loop = false; gameOverSfx.volume = 0.6;
+
+        function playMusic() { if (!bgMusic.src) return; bgMusic.currentTime = 0; bgMusic.play().catch(() => { }); }
+        function stopMusic() { bgMusic.pause(); bgMusic.currentTime = 0; }
+        function playGameOver() { stopMusic(); if (!gameOverSfx.src) return; gameOverSfx.currentTime = 0; gameOverSfx.play().catch(() => { }); }
+
+        document.getElementById('vol-slider').addEventListener('input', (e) => {
+            const v = parseFloat(e.target.value);
+            bgMusic.volume = v; gameOverSfx.volume = v;
+        });
+        document.getElementById('music-upload').addEventListener('change', (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            bgMusic.src = URL.createObjectURL(f);
+            const lbl = document.getElementById('music-label');
+            lbl.classList.add('loaded'); lbl.textContent = '✅ GAME MUSIC';
+        });
+        document.getElementById('gameover-upload').addEventListener('change', (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            gameOverSfx.src = URL.createObjectURL(f);
+            const lbl = document.getElementById('gameover-label');
+            lbl.classList.add('loaded'); lbl.textContent = '✅ GAME OVER SOUND';
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        //  RENDERING
+        // ═══════════════════════════════════════════════════════════════
+        function drawCell(context, col, row, cellSize) {
+            const x = col * cellSize, y = row * cellSize;
+            context.fillStyle = '#fff';
+            context.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+            context.fillStyle = 'rgba(255,255,255,0.4)';
+            context.fillRect(x + 2, y + 2, cellSize - 4, 3);
+            context.fillRect(x + 2, y + 2, 3, cellSize - 4);
+            context.fillStyle = 'rgba(0,0,0,0.5)';
+            context.fillRect(x + 2, y + cellSize - 4, cellSize - 4, 3);
+            context.fillRect(x + cellSize - 4, y + 2, 3, cellSize - 4);
+        }
+        function drawGhostCell(col, row) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(col * CELL + 2, row * CELL + 2, CELL - 4, CELL - 4);
+        }
+        function draw() {
+            if (boardImage) {
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(boardImage, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(0,0,0,0.38)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.strokeStyle = boardImage ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 0.5;
+            for (let r = 0; r <= ROWS; r++) {
+                ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(canvas.width, r * CELL); ctx.stroke();
+            }
+            for (let c = 0; c <= COLS; c++) {
+                ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, canvas.height); ctx.stroke();
+            }
+            for (let r = 0; r < ROWS; r++)
+                for (let c = 0; c < COLS; c++)
+                    if (board[r][c]) drawCell(ctx, c, r, CELL);
+            if (currentPiece && !gameOver) {
+                const ghost = { ...currentPiece };
+                while (isValid({ ...ghost, row: ghost.row + 1 })) ghost.row++;
+                const shape = getShape(ghost);
+                for (let r = 0; r < shape.length; r++)
+                    for (let c = 0; c < shape[r].length; c++)
+                        if (shape[r][c] && ghost.row + r >= 0) drawGhostCell(ghost.col + c, ghost.row + r);
+            }
+            if (currentPiece) {
+                const shape = getShape(currentPiece);
+                for (let r = 0; r < shape.length; r++)
+                    for (let c = 0; c < shape[r].length; c++)
+                        if (shape[r][c] && currentPiece.row + r >= 0)
+                            drawCell(ctx, currentPiece.col + c, currentPiece.row + r, CELL);
+            }
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.82)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = "bold 36px 'Bebas Neue', sans-serif";
+                ctx.textAlign = 'center';
+                ctx.letterSpacing = '6px';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 28);
+                ctx.font = "16px 'Share Tech Mono', monospace";
+                ctx.letterSpacing = '2px';
+                ctx.fillStyle = '#888';
+                ctx.fillText('SCORE  ' + score, canvas.width / 2, canvas.height / 2 + 10);
+                ctx.fillText('LEVEL  ' + level + '   LINES  ' + totalLines, canvas.width / 2, canvas.height / 2 + 36);
+
+                ctx.fillStyle = '#555';
+                ctx.font = "11px 'Share Tech Mono', monospace";
+                ctx.letterSpacing = '2px';
+                ctx.fillText('A+D  →  RESTART', canvas.width / 2, canvas.height / 2 + 50);
+                ctx.fillText('S  →  QUIT TO TUTORIAL', canvas.width / 2, canvas.height / 2 + 72);
+            }
+            drawNextPiece();
+        }
+        function drawNextPiece() {
+            const w = nextCanvas.width, h = nextCanvas.height;
+            nextCtx.fillStyle = '#000';
+            nextCtx.fillRect(0, 0, w, h);
+            if (!nextPieceName) return;
+            const shape = PIECES[nextPieceName][0];
+            const ns = 20;
+            const ox = Math.floor((w - shape[0].length * ns) / 2);
+            const oy = Math.floor((h - shape.length * ns) / 2);
+            for (let r = 0; r < shape.length; r++)
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (!shape[r][c]) continue;
+                    nextCtx.fillStyle = '#fff';
+                    nextCtx.fillRect(ox + c * ns + 1, oy + r * ns + 1, ns - 2, ns - 2);
+                    nextCtx.fillStyle = 'rgba(255,255,255,0.3)';
+                    nextCtx.fillRect(ox + c * ns + 2, oy + r * ns + 2, ns - 4, 2);
+                    nextCtx.fillStyle = 'rgba(0,0,0,0.4)';
+                    nextCtx.fillRect(ox + c * ns + 2, oy + r * ns + ns - 3, ns - 4, 2);
+                }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  RESTART 
+        // ═══════════════════════════════════════════════════════════════
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            initGame();
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            playMusic();
+            animFrameId = requestAnimationFrame(gameLoop);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!gameOver) return;
+            const key = e.key.toLowerCase();
+
+            // A+D → restart
+            if (keysDown.a && keysDown.d) {
+                initGame();
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+                playMusic();
+                animFrameId = requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // S → quit back to tutorial
+            if (key === 's') {
+                stopMusic();
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+                tutStep = 0;
+                tutDone = false;
+                tutBusy = false;
+                tutStepActive = false;
+                tutKeys.a = false; tutKeys.d = false; tutKeys.s = false;
+                const card = document.getElementById('tut-card');
+                card.style.display = '';
+                document.getElementById('tut-all-done').style.display = 'none';
+                renderTutStep(0);
+                for (let i = 0; i < 4; i++) {
+                    const dot = document.getElementById('dot-' + i);
+                    dot.classList.remove('active', 'done');
+                }
+                document.getElementById('dot-0').classList.add('active');
+                document.getElementById('instruction-page').style.display = 'flex';
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        //  GAME LOOP
+        // ═══════════════════════════════════════════════════════════════
+        function gameLoop(timestamp) {
+            if (!currentPiece && !gameOver) {
+                currentPiece = spawnPiece();
+                lastDropTime = timestamp;
+            }
+            processInput(timestamp);
+            if (!gameOver && timestamp - lastDropTime > getDropInterval()) {
+                dropOne();
+                lastDropTime = timestamp;
+            }
+            draw();
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SENSOR TUTORIAL FLOW
+        // ═══════════════════════════════════════════════════════════════
+
+        const TUTORIAL_STEPS = [
+            {
+                stepLabel: 'STEP 1 OF 4',
+                sensorTag: 'SENSOR R',
+                icon: '<span class="anim-r">🤚</span>',
+                action: 'TOUCH RIGHT HAND',
+                desc: 'Touch the right hand sensor<br>to confirm it works (keyboard: D)',
+                check: (k) => k.d && !k.a,
+            },
+            {
+                stepLabel: 'STEP 2 OF 4',
+                sensorTag: 'SENSOR L',
+                icon: '<span class="anim-l">🤚</span>',
+                action: 'TOUCH LEFT HAND',
+                desc: 'Touch the left hand sensor<br>to confirm it works keyboard: A)',
+                check: (k) => k.a && !k.d,
+            },
+            {
+                stepLabel: 'STEP 3 OF 4',
+                sensorTag: 'SENSOR L+R',
+                icon: '<span class="anim-both">🙌</span>',
+                action: 'TOUCH BOTH HANDS',
+                desc: 'Touch both hand sensors<br>at the same time (keyboard: A+D)',
+                check: (k) => k.a && k.d,
+            },
+            {
+                stepLabel: 'STEP 4 OF 4',
+                sensorTag: 'SENSOR DOWN',
+                icon: '<span class="anim-drop">👇</span>',
+                action: 'HANDS DOWN',
+                desc: 'Put both hands down<br>to confirm hard drop (keyboard: S)',
+                check: (k) => k.s,
+            },
+        ];
+
+        let tutStep = 0;
+        let tutDone = false;
+        let tutBusy = false;
+        let tutStepActive = false;
+
+        // Separate key state for tutorial (adds S key tracking)
+        const tutKeys = { a: false, d: false, s: false };
+
+        function renderTutStep(idx) {
+            const s = TUTORIAL_STEPS[idx];
+            document.getElementById('tut-step-label').textContent = s.stepLabel;
+            document.getElementById('tut-sensor-tag').textContent = s.sensorTag;
+            document.getElementById('tut-icon').innerHTML = s.icon;
+            document.getElementById('tut-action').textContent = s.action;
+            document.getElementById('tut-desc').innerHTML = s.desc;
+            const st = document.getElementById('tut-status');
+            st.textContent = 'WAITING FOR GESTURE…';
+            st.className = 'tut-status waiting';
+        }
+
+        function advanceTutStep() {
+            if (tutBusy) return;
+            tutBusy = true;
+            const st = document.getElementById('tut-status');
+            st.textContent = '✓  GESTURE CONFIRMED';
+            st.className = 'tut-status success';
+            document.getElementById('dot-' + tutStep).classList.remove('active');
+            document.getElementById('dot-' + tutStep).classList.add('done');
+            const card = document.getElementById('tut-card');
+            setTimeout(() => {
+                tutStep++;
+                if (tutStep >= TUTORIAL_STEPS.length) {
+                    card.style.display = 'none';
+                    document.getElementById('tut-all-done').style.display = 'flex';
+                    tutDone = true;
+                    tutBusy = false;
+                } else {
+                    card.classList.add('card-exit');
+                    setTimeout(() => {
+                        card.classList.remove('card-exit');
+                        renderTutStep(tutStep);
+                        document.getElementById('dot-' + tutStep).classList.add('active');
+                        card.classList.add('card-enter');
+                        setTimeout(() => { card.classList.remove('card-enter'); tutBusy = false; }, 420);
+                    }, 460);
+                }
+            }, 500);
+        }
+
+        function launchGame() {
+            document.getElementById('instruction-page').style.display = 'none';
+            initGame();
+            playMusic();
+            window.focus();
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // Tutorial key listeners
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'a') tutKeys.a = true;
+            if (key === 'd') tutKeys.d = true;
+            if (key === 's') tutKeys.s = true;
+
+            const page = document.getElementById('instruction-page');
+            if (page.style.display === 'none') return;
+
+            if (tutDone) {
+                if (tutKeys.a && tutKeys.d) launchGame();
+                return;
+            }
+
+            if (!tutBusy && !tutStepActive) {
+                if (TUTORIAL_STEPS[tutStep].check(tutKeys)) {
+                    tutStepActive = true;
+                    advanceTutStep();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'a') { tutKeys.a = false; tutStepActive = false; }
+            if (key === 'd') { tutKeys.d = false; tutStepActive = false; }
+            if (key === 's') { tutKeys.s = false; tutStepActive = false; }
+        });
+
+    </script>
+
+</body>
+
+</html>
